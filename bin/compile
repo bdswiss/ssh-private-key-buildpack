@@ -43,7 +43,7 @@ if [ "$use_paramstore" == "true" ]; then
 	"$awsexec" configure set aws_access_key_id "$aws_key_id"
 	"$awsexec" configure set aws_secret_access_key "$aws_key_secret"
 	echo "-----> Getting SSH Key From ParamStore [$ssh_paramstore_name] / Region [$aws_region]"
-	ssh_key="$($awsexec ssm get-parameter --name $ssh_paramstore_name --with-decryption --region $aws_region  --query 'Parameter.Value' | base64)"
+	ssh_key="$($awsexec ssm get-parameter --name $ssh_paramstore_name --with-decryption --region $aws_region  --query 'Parameter.Value' | awk  '{gsub("\\\\n","\n")};1' | awk '{gsub("\"", "")};1' | base64)"
 	echo "$ssh_key"
 	#cleaning up...
 	rm -rf /tmp/awscli*
