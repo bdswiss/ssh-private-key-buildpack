@@ -11,15 +11,40 @@ function indent() {
 ENV_DIR=${3:-}
 use_paramstore="$(cat $ENV_DIR/SSH_USE_AWS_PS)"
 if [ "$use_paramstore" == "true" ]; then
+	# config
+	AWS_CLI_URL="https://s3.amazonaws.com/aws-cli/awscli-bundle.zip"
+
+	# parse and derive params
+	BUILD_DIR=$1
+	CACHE_DIR=$2
+
+	BUILDPACK_DIR="$(dirname $(dirname $0))"
+
+	echo "-----> Installing AWS CLI"
+	curl --silent --show-error -o /tmp/awscli-bundle.zip "$AWS_CLI_URL" |& indent
+	unzip -qq -d "$BUILD_DIR/vendor" /tmp/awscli-bundle.zip |& indent
+
+	# Since build-dir isn't guaranteed to be /app, move whatever's in /app's awscli
+	# dir out of the way. The installer uses virtualenv, which means it must be
+	# installed in the final location - we have to install into /app.
+	rm -rf /tmp/awscli
+	[ -e /app/vendor/awscli ] && mv /app/vendor/awscli /tmp/awscli
+
+	INSTALL_DIR="/app/vendor/awscli"
+	"$BUILD_DIR/vendor/awscli-bundle/install" -i "$INSTALL_DIR" |& indent
+
 	echo "-----> Using AWS Param Store"
 	aws_key_id="$(cat $ENV_DIR/AWS_DEPLOY_KEY_ID)"
 	aws_key_secret="$(cat $ENV_DIR/AWS_DEPLOY_KEY_SECRET)"
 	aws_region="$(cat $ENV_DIR/AWS_REGION)"
 	ssh_paramstore_name="$(cat $ENV_DIR/DEPLOY_KEY_PSTORE_NAME)"
-	echo "-----> Configuring up AwsCli, Depend on https://github.com/heroku/heroku-buildpack-awscli.git $HOME"
+	echo "-----> Configuring up AwsCli"
 	/app/vendor/awscli/bin/aws configure set aws_access_key_id "$aws_key_id" aws_secret_access_key "$aws_key_secret"
 	echo "-----> Getting SSH Key From ParamStore [$ssh_paramstore_name] / Region [$aws_region]"
 	ssh_key="$(aws ssm get-parameter --name $ssh_paramstore_name --with-decryption --region $aws_region  --query 'Parameter.Value' | base64)"
+
+	#cleaning up...
+	rm -rf /tmp/awscli*
 else
 	echo "-----> Getting From Env"
 	ssh_key="$(cat $ENV_DIR/SSH_KEY)"
