@@ -38,10 +38,12 @@ if [ "$use_paramstore" == "true" ]; then
 	aws_key_secret="$(cat $ENV_DIR/AWS_DEPLOY_KEY_SECRET)"
 	aws_region="$(cat $ENV_DIR/AWS_REGION)"
 	ssh_paramstore_name="$(cat $ENV_DIR/DEPLOY_KEY_PSTORE_NAME)"
+	awsexec="/app/vendor/awscli/bin/aws"
 	echo "-----> Configuring up AwsCli"
-	/app/vendor/awscli/bin/aws configure set aws_access_key_id "$aws_key_id" aws_secret_access_key "$aws_key_secret"
+	"$awsexec" configure set aws_access_key_id "$aws_key_id"
+	"$awsexec" configure set aws_secret_access_key "$aws_key_secret"
 	echo "-----> Getting SSH Key From ParamStore [$ssh_paramstore_name] / Region [$aws_region]"
-	ssh_key="$(aws ssm get-parameter --name $ssh_paramstore_name --with-decryption --region $aws_region  --query 'Parameter.Value' | base64)"
+	ssh_key="$($awsexec ssm get-parameter --name $ssh_paramstore_name --with-decryption --region $aws_region  --query 'Parameter.Value' | base64)"
 
 	#cleaning up...
 	rm -rf /tmp/awscli*
